@@ -3,80 +3,75 @@ import pandas as pd
 import os
 import sqlite3
 
-# Conectar a la base de datos SQLite
+# Función para conectar a la base de datos
 def connect_db(db_name):
     return sqlite3.connect(db_name)
 
-# Obtener los equipos de una temporada
+# Función para listar equipos por temporada
 def list_teams_by_season(conn, season):
     query = f'SELECT DISTINCT "Squad" FROM "{season}_stats_standard";'
     teams = pd.read_sql_query(query, conn)
     return teams['Squad'].tolist()
 
-# Obtener estadísticas del equipo para las tablas seleccionadas
-def get_team_stats_with_cmp_percent(conn, season, table, team):
+# Función para obtener las estadísticas de un equipo y una tabla
+def get_team_stats(conn, season, table, team, selected_columns=None):
     query = f'SELECT * FROM "{season}_{table}" WHERE "Squad" = "{team}";'
     df = pd.read_sql_query(query, conn)
-    
-    # Calcular 'Total_Cmp%' si no está en el DataFrame
-    if 'Total_Cmp%' not in df.columns:
-        if 'Total_Cmp' in df.columns and 'Total_Att' in df.columns:
-            df['Total_Cmp%'] = df['Total_Cmp'] / df['Total_Att'] * 100
-        else:
-            st.write(f"No se encontraron 'Total_Cmp' o 'Total_Att' para calcular 'Total_Cmp%' en la tabla {table}.")
-    
+    if selected_columns:
+        df = df[selected_columns]  # Seleccionar solo columnas importantes si se pasan
     return df
 
-# Mostrar porteros y jugadores de campo
-def filter_and_show_stats(conn, season, team):
-    # Columnas para porteros
-    gk_columns = ['Player', 'Pos', 'Playing Time_MP', 'Playing Time_Starts', 
-                  'Performance_CS', 'Performance_Saves', 'Performance_GA', 
-                  'Expected_PSxG+/-', 'Total_Cmp%', 'Performance_Fls', 'Performance_Fld', 
-                  'Performance_CrdY', 'Performance_CrdR']
-    
-    # Columnas para jugadores de campo
-    field_columns = ['Player', 'Pos', 'Playing Time_MP', 'Playing Time_Starts', 
-                     'Performance_Gls', 'Performance_Ast', 'Standard_Sh', 
-                     'Standard_SoT', 'Total_Cmp%', 'Tackles_TklW', 
-                     'Unnamed: 20_level_0_Int', 'Performance_Fls', 'Performance_Fld', 
-                     'Performance_CrdY', 'Performance_CrdR']
-    
-    # Obtener estadísticas para porteros (usando varias tablas)
-    gk_stats_keeper = get_team_stats_with_cmp_percent(conn, season, 'stats_keeper', team)
-    gk_stats_adv = get_team_stats_with_cmp_percent(conn, season, 'stats_keeper_adv', team)
-    gk_stats_passing = get_team_stats_with_cmp_percent(conn, season, 'stats_passing', team)
-    gk_stats_misc = get_team_stats_with_cmp_percent(conn, season, 'stats_misc', team)
-    
-    # Merge de las estadísticas para porteros
-    gk_df = gk_stats_keeper.merge(gk_stats_adv, on=['Player', 'Pos'], suffixes=('_x', '_y'), how='left')
-    gk_df = gk_df.merge(gk_stats_passing, on=['Player', 'Pos'], suffixes=('_x', '_y'), how='left')
-    gk_df = gk_df.merge(gk_stats_misc, on=['Player', 'Pos'], suffixes=('_x', '_y'), how='left')
+# Función para seleccionar solo las columnas necesarias
+def filter_columns(df, selected_columns):
+    # Asegurarse de que las columnas numéricas estén correctamente tipadas
+    df = df.apply(pd.to_numeric, errors='ignore')  # Convertir automáticamente lo que se pueda a numérico
+    return df[selected_columns]
 
-    # Filtrar solo las columnas importantes para porteros
-    gk_df_filtered = gk_df[gk_columns]
+# Función para crear el DataFrame de porteros
+def get_goalkeeper_stats(conn, season, team):
+    # Seleccionar las columnas específicas de las tablas correspondientes
+    columns = ['Player', 'Pos', 'Playing Time_MP', 'Playing Time_Starts', 
+               'Performance_CS', 'Performance_Saves', 'Performance_GA', 
+               'Expected_PSxG+/-', 'Total_Cmp%', 'Performance_Fls', 
+               'Performance_Fld', 'Performance_CrdY', 'Performance_CrdR']
     
-    # Mostrar estadísticas de porteros
-    st.write(f"Estadísticas de porteros del equipo {team} en la temporada {season}")
-    st.dataframe(gk_df_filtered)
-
-    # Obtener estadísticas para jugadores de campo (usando varias tablas)
-    field_stats_standard = get_team_stats_with_cmp_percent(conn, season, 'stats_standard', team)
-    field_stats_shooting = get_team_stats_with_cmp_percent(conn, season, 'stats_shooting', team)
-    field_stats_defense = get_team_stats_with_cmp_percent(conn, season, 'stats_defense', team)
-    field_stats_misc = get_team_stats_with_cmp_percent(conn, season, 'stats_misc', team)
-
-    # Merge de las estadísticas para jugadores de campo
-    field_df = field_stats_standard.merge(field_stats_shooting, on=['Player', 'Pos'], suffixes=('_x', '_y'), how='left')
-    field_df = field_df.merge(field_stats_defense, on=['Player', 'Pos'], suffixes=('_x', '_y'), how='left')
-    field_df = field_df.merge(field_stats_misc, on=['Player', 'Pos'], suffixes=('_x', '_y'), how='left')
-
-    # Filtrar solo las columnas importantes para jugadores de campo
-    field_df_filtered = field_df[field_columns]
+    # Obtener datos de las tablas necesarias, seleccionando solo las columnas importantes
+    keeper_stats = get_team_stats(conn, season, 'stats_keeper', team, ['Player', 'Pos', 'Playing Time_MP', 'Playing Time_Starts', 'Performance_CS', 'Performance_Saves', 'Performance_GA'])
+    keeper_adv_stats = get_team_stats(conn, season, 'stats_keeper_adv', team, ['Player', 'Expected_PSxG+/-'])
+    passing_stats = get_team_stats(conn, season, 'stats_passing', team, ['Player', 'Total_Cmp%'])
+    misc_stats = get_team_stats(conn, season, 'stats_misc', team, ['Player', 'Performance_Fls', 'Performance_Fld', 'Performance_CrdY', 'Performance_CrdR'])
     
-    # Mostrar estadísticas de jugadores de campo
-    st.write(f"Estadísticas de jugadores de campo del equipo {team} en la temporada {season}")
-    st.dataframe(field_df_filtered)
+    # Unir las tablas por la columna "Player", evitando duplicados
+    combined_df = pd.merge(keeper_stats, keeper_adv_stats, on='Player')
+    combined_df = pd.merge(combined_df, passing_stats, on='Player')
+    combined_df = pd.merge(combined_df, misc_stats, on='Player')
+    
+    # Filtrar las columnas importantes
+    return filter_columns(combined_df, columns)
+
+# Función para crear el DataFrame de jugadores de campo
+def get_field_players_stats(conn, season, team):
+    # Seleccionar las columnas específicas de las tablas correspondientes
+    columns = ['Player', 'Pos', 'Playing Time_MP', 'Playing Time_Starts', 
+               'Performance_Gls', 'Performance_Ast', 'Standard_Sh', 'Standard_SoT', 
+               'Total_Cmp%', 'Tackles_TklW', 'Unnamed: 20_level_0_Int', 
+               'Performance_Fls', 'Performance_Fld', 'Performance_CrdY', 'Performance_CrdR']
+    
+    # Obtener datos de las tablas necesarias, seleccionando solo las columnas importantes
+    standard_stats = get_team_stats(conn, season, 'stats_standard', team, ['Player', 'Pos', 'Playing Time_MP', 'Playing Time_Starts', 'Performance_Gls', 'Performance_Ast'])
+    shooting_stats = get_team_stats(conn, season, 'stats_shooting', team, ['Player', 'Standard_Sh', 'Standard_SoT'])
+    passing_stats = get_team_stats(conn, season, 'stats_passing', team, ['Player', 'Total_Cmp%'])
+    defense_stats = get_team_stats(conn, season, 'stats_defense', team, ['Player', 'Tackles_TklW', 'Unnamed: 20_level_0_Int'])
+    misc_stats = get_team_stats(conn, season, 'stats_misc', team, ['Player', 'Performance_Fls', 'Performance_Fld', 'Performance_CrdY', 'Performance_CrdR'])
+    
+    # Unir las tablas por la columna "Player", evitando duplicados
+    combined_df = pd.merge(standard_stats, shooting_stats, on='Player')
+    combined_df = pd.merge(combined_df, passing_stats, on='Player')
+    combined_df = pd.merge(combined_df, defense_stats, on='Player')
+    combined_df = pd.merge(combined_df, misc_stats, on='Player')
+    
+    # Filtrar las columnas importantes
+    return filter_columns(combined_df, columns)
 
 # Configuración de Streamlit
 st.title("Estadísticas de Jugadores por Temporada")
@@ -84,7 +79,7 @@ st.title("Estadísticas de Jugadores por Temporada")
 # Descripción de la funcionalidad
 st.write("""
     Selecciona una temporada y equipo para explorar las estadísticas de los jugadores.
-    Además, puedes filtrar entre diferentes tipos de datos y ver el desempeño de los jugadores a profundidad.
+    Aquí se muestran las estadísticas de porteros y jugadores de campo de manera separada.
 """)
 
 # Conectar a la base de datos
@@ -105,8 +100,15 @@ if os.path.exists(image_path):
 else:
     st.write(f"No se encontró la imagen del equipo {team_selected}")
 
-# Mostrar las estadísticas de porteros y jugadores de campo
-filter_and_show_stats(conn, season_selected, team_selected)
+# Mostrar las estadísticas de porteros
+st.write(f"Estadísticas de porteros del equipo {team_selected} en la temporada {season_selected}")
+goalkeeper_df = get_goalkeeper_stats(conn, season_selected, team_selected)
+st.dataframe(goalkeeper_df)
+
+# Mostrar las estadísticas de jugadores de campo
+st.write(f"Estadísticas de jugadores de campo del equipo {team_selected} en la temporada {season_selected}")
+field_players_df = get_field_players_stats(conn, season_selected, team_selected)
+st.dataframe(field_players_df)
 
 # Cerrar la conexión a la base de datos
 conn.close()
