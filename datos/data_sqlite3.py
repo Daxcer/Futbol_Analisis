@@ -14,12 +14,13 @@ options.add_argument('--disable-dev-shm-usage')
 driver = webdriver.Chrome(options=options)
 
 # Conectamos a la base de datos SQLite (Si no existe se crea una)
-conn = sqlite3.connect('C:/Users/danag.LAPTOP-A0ADBJQ7/Downloads/Clases_Diplomado/proyecto_final/datos/data.db')
+conn = sqlite3.connect('/content/data.db')
 
 # Lista de temporadas a considerar (Son todas las que estan disponibles en FBREF)
 seasons = ['2024-2025', '2023-2024', '2022-2023', '2021-2022', '2020-2021', '2019-2020', '2018-2019']
 
 # Se crea un diccionario con el ID de la tabla y su URL
+# El ID se obtiene al inspeccionar el html y hace referencia a la tabla de la que buscamos tomar la información
 urls = {
     'stats_standard': 'https://fbref.com/en/comps/9/{}/stats/Premier-League-Stats',
     'stats_keeper': 'https://fbref.com/en/comps/9/{}/keepers/Premier-League-Stats',
@@ -46,25 +47,25 @@ def load_table(url, table_id):
     df = pd.read_html(str(table))[0]
 
     if isinstance(df.columns, pd.MultiIndex):
-      df.columns = ['_'.join(filter(None, col)).strip() for col in df.columns]
+      df.columns = ['.'.join(filter(None, col)).strip() for col in df.columns]
 
     # Definir las columnas que deben ser texto
     text_columns = [
-            'Unnamed: 0_level_0_Rk', 'Unnamed: 1_level_0_Player',
-            'Unnamed: 2_level_0_Nation', 'Unnamed: 3_level_0_Pos',
-            'Unnamed: 4_level_0_Squad', 'Unnamed: 5_level_0_Age',
-            'Unnamed: 6_level_0_Born'
+            'Unnamed: 0_level_0.Rk', 'Unnamed: 1_level_0.Player',
+            'Unnamed: 2_level_0.Nation', 'Unnamed: 3_level_0.Pos',
+            'Unnamed: 4_level_0.Squad', 'Unnamed: 5_level_0.Age',
+            'Unnamed: 6_level_0.Born'
         ]
 
     # Renombrar las columnas eliminando el prefijo 'Unnamed: ...'
     new_column_names = {
-            'Unnamed: 0_level_0_Rk': 'Rk',
-            'Unnamed: 1_level_0_Player': 'Player',
-            'Unnamed: 2_level_0_Nation': 'Nation',
-            'Unnamed: 3_level_0_Pos': 'Pos',
-            'Unnamed: 4_level_0_Squad': 'Squad',
-            'Unnamed: 5_level_0_Age': 'Age',
-            'Unnamed: 6_level_0_Born': 'Born'
+            'Unnamed: 0_level_0.Rk': 'Rk',
+            'Unnamed: 1_level_0.Player': 'Player',
+            'Unnamed: 2_level_0.Nation': 'Nation',
+            'Unnamed: 3_level_0.Pos': 'Pos',
+            'Unnamed: 4_level_0.Squad': 'Squad',
+            'Unnamed: 5_level_0.Age': 'Age',
+            'Unnamed: 6_level_0.Born': 'Born'
         }
     df.rename(columns=new_column_names, inplace=True)
 
