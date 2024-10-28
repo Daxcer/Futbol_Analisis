@@ -8,3 +8,6 @@ opencv-python
 ultralytics
 lxml
 selenium
+dask
+tensorflow
+keras
