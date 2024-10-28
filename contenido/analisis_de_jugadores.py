@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 import os
 import sqlite3
 
@@ -30,38 +29,18 @@ def filter_columns(df, selected_columns):
     df = df.apply(pd.to_numeric, errors='ignore')
     return df[selected_columns]
 
-# Función para crear el DataFrame de porteros
-def get_goalkeeper_stats(conn, season, team):
-    columns = ['Player', 'Pos', 'Playing Time_MP', 'Playing Time_Min', 
-               'Performance_CS', 'Performance_Saves', 'Performance_GA', 
-               'Expected_PSxG+/-', 'Total_Cmp%', 'Performance_Fls', 
-               'Performance_Fld', 'Performance_CrdY', 'Performance_CrdR']
+# Función para crear el Pizza Chart de un jugador
+def get_players_stats(conn, season, team):
+    columns = ['Player', 'Pos', 'standard_MP', 'standard_Min', 
+               'standard_Gls', 'standard_Ast', 'shooting_Sh', 'shooting_SoT', 
+               'passing_Cmp%', 'defense_TklW', 'defense_Int', 
+               'misc_Fls', 'misc_Fld', 'misc_CrdY', 'misc_CrdR']
     
-    keeper_stats = get_team_stats(conn, season, 'stats_keeper', team, 
-                                  ['Player', 'Pos', 'Playing Time_MP', 'Playing Time_Min', 
-                                   'Performance_CS', 'Performance_Saves', 'Performance_GA'])
-    keeper_adv_stats = get_team_stats(conn, season, 'stats_keeper_adv', team, ['Player', 'Expected_PSxG+/-'])
-    passing_stats = get_team_stats(conn, season, 'stats_passing', team, ['Player', 'Total_Cmp%'])
-    misc_stats = get_team_stats(conn, season, 'stats_misc', team, ['Player', 'Performance_Fls', 'Performance_Fld', 'Performance_CrdY', 'Performance_CrdR'])
-    
-    combined_df = pd.merge(keeper_stats, keeper_adv_stats, on='Player')
-    combined_df = pd.merge(combined_df, passing_stats, on='Player')
-    combined_df = pd.merge(combined_df, misc_stats, on='Player')
-    
-    return filter_columns(combined_df, columns)
-
-# Función para crear el DataFrame de jugadores de campo
-def get_field_players_stats(conn, season, team):
-    columns = ['Player', 'Pos', 'Playing Time_MP', 'Playing Time_Min', 
-               'Performance_Gls', 'Performance_Ast', 'Standard_Sh', 'Standard_SoT', 
-               'Total_Cmp%', 'Tackles_TklW', 'Unnamed: 20_level_0_Int', 
-               'Performance_Fls', 'Performance_Fld', 'Performance_CrdY', 'Performance_CrdR']
-    
-    standard_stats = get_team_stats(conn, season, 'stats_standard', team, ['Player', 'Pos', 'Playing Time_MP', 'Playing Time_Min', 'Performance_Gls', 'Performance_Ast'])
-    shooting_stats = get_team_stats(conn, season, 'stats_shooting', team, ['Player', 'Standard_Sh', 'Standard_SoT'])
-    passing_stats = get_team_stats(conn, season, 'stats_passing', team, ['Player', 'Total_Cmp%'])
-    defense_stats = get_team_stats(conn, season, 'stats_defense', team, ['Player', 'Tackles_TklW', 'Unnamed: 20_level_0_Int'])
-    misc_stats = get_team_stats(conn, season, 'stats_misc', team, ['Player', 'Performance_Fls', 'Performance_Fld', 'Performance_CrdY', 'Performance_CrdR'])
+    standard_stats = get_team_stats(conn, season, 'stats_standard', team, ['Player', 'Pos', 'standard_MP', 'standard_Min', 'standard_Gls', 'standard_Ast'])
+    shooting_stats = get_team_stats(conn, season, 'stats_shooting', team, ['Player', 'shooting_Sh', 'shooting_SoT'])
+    passing_stats = get_team_stats(conn, season, 'stats_passing', team, ['Player', 'passing_Cmp%'])
+    defense_stats = get_team_stats(conn, season, 'stats_defense', team, ['Player', 'defense_TklW', 'defense_Int'])
+    misc_stats = get_team_stats(conn, season, 'stats_misc', team, ['Player', 'misc_Fls', 'misc_Fld', 'misc_CrdY', 'misc_CrdR'])
     
     combined_df = pd.merge(standard_stats, shooting_stats, on='Player')
     combined_df = pd.merge(combined_df, passing_stats, on='Player')
@@ -73,12 +52,12 @@ def get_field_players_stats(conn, season, team):
 # Función para obtener las estadísticas combinadas de un jugador
 def get_combined_stats(conn, season, team):
     # Obtener datos de cada tabla relevante
-    shooting_stats = get_team_stats(conn, season, 'stats_shooting', team, ['Player', 'Standard_SoT/90', 'Standard_Sh'])
-    gca_stats = get_team_stats(conn, season, 'stats_gca', team, ['Player', 'SCA_SCA90'])
-    possession_stats = get_team_stats(conn, season, 'stats_possession', team, ['Player', 'Touches_Att Pen', 'Take-Ons_Succ', 'Receiving_Rec'])
-    passing_stats = get_team_stats(conn, season, 'stats_passing', team, ['Player', 'Total_Att', 'Total_Cmp', 'Unnamed: 26_level_0_KP', 'Unnamed: 30_level_0_PrgP'])
-    misc_stats = get_team_stats(conn, season, 'stats_misc', team, ['Player', 'Performance_TklW', 'Performance_Int', 'Performance_Recov', 'Performance_Fls', 'Aerial Duels_Won'])
-    standard_stats = get_team_stats(conn, season, 'stats_standard', team, ['Player', 'Pos', 'Playing Time_MP', 'Playing Time_Min'])
+    shooting_stats = get_team_stats(conn, season, 'stats_shooting', team, ['Player', 'shooting_SoT/90', 'shooting_Sh'])
+    gca_stats = get_team_stats(conn, season, 'stats_gca', team, ['Player', 'gca_SCA90'])
+    possession_stats = get_team_stats(conn, season, 'stats_possession', team, ['Player', 'possession_Att Pen', 'possession_Succ', 'possession_Rec'])
+    passing_stats = get_team_stats(conn, season, 'stats_passing', team, ['Player', 'passing_Att', 'passing_Cmp', 'passing_KP', 'passing_PrgP'])
+    misc_stats = get_team_stats(conn, season, 'stats_misc', team, ['Player', 'misc_TklW', 'misc_Int', 'misc_Recov', 'misc_Fls', 'misc_Won'])
+    standard_stats = get_team_stats(conn, season, 'stats_standard', team, ['Player', 'Pos', 'standard_MP', 'standard_Min'])
 
     # Fusionar los DataFrames por la columna 'Player'
     combined_df = pd.merge(shooting_stats, gca_stats, on='Player', how='inner')
@@ -93,12 +72,12 @@ def get_combined_stats(conn, season, team):
 # Función para obtener y calcular los percentiles de toda la liga
 def get_percentile_data(conn, season, team):
     # Obtener datos de cada tabla relevante para toda la liga
-    shooting_stats = get_team_stats(conn, season, 'stats_shooting', team, ['Player', 'Squad', 'Standard_SoT/90', 'Standard_Sh'])
-    gca_stats = get_team_stats(conn, season, 'stats_gca', team, ['Player', 'Squad', 'SCA_SCA90'])
-    possession_stats = get_team_stats(conn, season, 'stats_possession', team, ['Player', 'Squad', 'Touches_Att Pen', 'Take-Ons_Succ', 'Receiving_Rec'])
-    passing_stats = get_team_stats(conn, season, 'stats_passing', team, ['Player', 'Squad', 'Total_Att', 'Total_Cmp', 'Unnamed: 26_level_0_KP', 'Unnamed: 30_level_0_PrgP'])
-    misc_stats = get_team_stats(conn, season, 'stats_misc', team, ['Player', 'Squad', 'Performance_TklW', 'Performance_Int', 'Performance_Recov', 'Performance_Fls', 'Aerial Duels_Won'])
-    standard_stats = get_team_stats(conn, season, 'stats_standard', team, ['Player', 'Squad', 'Pos', 'Playing Time_MP', 'Playing Time_Min'])
+    shooting_stats = get_team_stats(conn, season, 'stats_shooting', team, ['Player', 'Squad', 'shooting_SoT/90', 'shooting_Sh'])
+    gca_stats = get_team_stats(conn, season, 'stats_gca', team, ['Player', 'Squad', 'gca_SCA90'])
+    possession_stats = get_team_stats(conn, season, 'stats_possession', team, ['Player', 'Squad', 'possession_Att Pen', 'possession_Succ', 'possession_Rec'])
+    passing_stats = get_team_stats(conn, season, 'stats_passing', team, ['Player', 'Squad', 'passing_Att', 'passing_Cmp', 'passing_KP', 'passing_PrgP'])
+    misc_stats = get_team_stats(conn, season, 'stats_misc', team, ['Player', 'Squad', 'misc_TklW', 'misc_Int', 'misc_Recov', 'misc_Fls', 'misc_Won'])
+    standard_stats = get_team_stats(conn, season, 'stats_standard', team, ['Player', 'Squad', 'Pos', 'standard_MP', 'standard_Min'])
 
     # Fusionar los DataFrames por la columna 'Player' para obtener los datos completos de la liga
     combined_df = pd.merge(shooting_stats, gca_stats, on=['Player', 'Squad'], how='inner')
@@ -118,15 +97,15 @@ def calculate_percentiles(df, columns, season, min_minutes_pct=0.25):
     df['Pos'] = clean_position(df['Pos'])
 
     # Calcular el total de partidos jugados en la temporada actual
-    df['Playing Time_MP'] = pd.to_numeric(df['Playing Time_MP'], errors='coerce')
-    total_matches_played = df['Playing Time_MP'].max()
+    df['standard_MP'] = pd.to_numeric(df['standard_MP'], errors='coerce')
+    total_matches_played = df['standard_MP'].max()
 
     # Calcular los minutos máximos en la temporada actual
     max_minutes = get_max_minutes(season, total_matches_played)
 
     # Filtrar jugadores que hayan jugado al menos un % de los minutos
-    df['Playing Time_Min'] = pd.to_numeric(df['Playing Time_Min'], errors='coerce')
-    df = df[df['Playing Time_Min'] >= min_minutes_pct * max_minutes]
+    df['standard_Min'] = pd.to_numeric(df['standard_Min'], errors='coerce')
+    df = df[df['standard_Min'] >= min_minutes_pct * max_minutes]
 
     # Calcular percentiles por posición (comparamos solo jugadores con la misma posición primaria)
     for pos in df['Pos'].unique():
@@ -154,89 +133,96 @@ def get_max_minutes(season, total_matches_played):
 def rename_columns(column_names, rename_dict):
     return [rename_dict.get(col, col) for col in column_names]
 
-def plotly_radar_chart(data, player_name, season_selected, team_selected, pos, rename_dict=None):
+# Función para crear un gráfico de "pizza" con fondo negro y colores vivos
+def pizza_chart(data, player_name, season_selected, team_selected, pos, rename_dict=None):
     # Dividir las métricas en tres categorías
-    attacking = ['Percentil_Standard_Sh', 'Percentil_Standard_SoT/90', 'Percentil_SCA_SCA90', 'Percentil_Touches_Att Pen', 'Percentil_Take-Ons_Succ']
-    possession = ['Percentil_Total_Att', 'Percentil_Total_Cmp', 'Percentil_Unnamed: 26_level_0_KP', 'Percentil_Unnamed: 30_level_0_PrgP', 'Percentil_Receiving_Rec']
-    defending = ['Percentil_Performance_TklW', 'Percentil_Performance_Int', 'Percentil_Performance_Recov', 'Percentil_Performance_Fls', 'Percentil_Aerial Duels_Won']
+    attacking = ['Percentil_shooting_Sh', 'Percentil_shooting_SoT/90', 'Percentil_gca_SCA90', 'Percentil_possession_Att Pen', 'Percentil_possession_Succ']
+    possession = ['Percentil_passing_Att', 'Percentil_passing_Cmp', 'Percentil_passing_KP', 'Percentil_passing_PrgP', 'Percentil_possession_Rec']
+    defending = ['Percentil_misc_TklW', 'Percentil_misc_Int', 'Percentil_misc_Recov', 'Percentil_misc_Fls', 'Percentil_misc_Won']
 
     metrics = attacking + possession + defending
     values = data[data['Player'] == player_name][metrics].values.flatten().tolist()
 
+    # Normalizar los valores para el gráfico de pizza
+    values += values[:1]  # Repetimos el primero para cerrar el círculo
+
+    # Crear los ángulos para el gráfico
+    num_vars = len(metrics)
+    angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+    angles += angles[:1]
+
+    # Si se proporcionó un diccionario de renombres, actualizar las etiquetas
     if rename_dict:
         metrics = rename_columns(metrics, rename_dict)
 
-    # Añadir el primer valor al final para cerrar el gráfico
-    values += values[:1]
-    metrics += metrics[:1]
+    # Configurar el gráfico de pizza
+    fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(polar=True))  # Tamaño ajustado del gráfico
+    fig.patch.set_facecolor('black')  # Fondo negro
+    ax.set_facecolor('black')  # Fondo negro en el gráfico
 
-    # Definir colores por categoría
-    colors = ['#EC313A'] * len(attacking) + ['#1CD787'] * len(possession) + ['#0E70BE'] * len(defending)
+    # Dibujar segmentos individuales para cada métrica
+    for i, (angle, value) in enumerate(zip(angles[:-1], values[:-1])):
+        # Determinar el color según la categoría
+        if i < len(attacking):
+            color = '#EC313A'  # Rojo vivo para ataque
+        elif i < len(attacking) + len(possession):
+            color = '#1CD787'  # Verde vivo para posesión
+        else:
+            color = '#0E70BE'  # Azul vivo para defensa
+        
+        # Dibujar un segmento de "pizza" para cada métrica
+        ax.bar(angle, value, width=2*np.pi/num_vars, color=color, edgecolor='white', alpha=1.0, align='edge')
 
-    # Crear gráfico polar (radar chart) con plotly
-    fig = go.Figure()
+        # Colocar los valores en el borde superior de la rebanada, centrado
+        # Mover ligeramente la posición angular para que esté entre las divisiones
+        angle_middle = angle + (np.pi / num_vars)  # Centro entre dos ángulos
+        bbox_props = dict(boxstyle="round,pad=0.3", facecolor=color, edgecolor="white", linewidth=2)
+        ax.text(angle_middle, value, f'{value:.0f}', horizontalalignment='center', verticalalignment='center', size=10, color='white', weight='semibold', bbox=bbox_props)
 
-    # Dibujar segmentos individuales de colores
-    for i, value in enumerate(values[:-1]):
-        fig.add_trace(go.Barpolar(
-            r=[100],
-            theta=[metrics[i]],
-            name=metrics[i],
-            marker_color=colors[i],
-            opacity=0.8
-        ))
+    # Ajustar el radio del círculo del gráfico para que el centro sea más pequeño
+    ax.set_ylim(0, 120)  # Hacemos que el círculo central sea más pequeño al extender el eje y
+    
+    # Añadir etiquetas a cada métrica en el centro de la rebanada
+    ax.set_yticklabels([])  # Quitamos los labels de las líneas circulares
+    ax.set_xticks(angles[:-1])  # Los ángulos para las etiquetas
+    ax.set_xticklabels(metrics, fontsize=12, fontweight='bold', color='white', wrap=True)  # Nombres en blanco y en negritas
+    for label, angle in zip(ax.get_xticklabels(), angles[:-1]):
+        label.set_horizontalalignment('center')  # Centrar el texto entre las rebanadas
 
-    # Añadir la línea principal de datos del jugador
-    fig.add_trace(go.Scatterpolar(
-        r=values,
-        theta=metrics,
-        fill='toself',
-        name=player_name,
-        line=dict(color='white'),
-        marker=dict(color='white')
-    ))
+    # Ajustar el límite del gráfico para que las líneas divisorias no se superpongan
+    ax.set_ylim(0, 105)  # Esto mantiene los valores dentro del rango de 0 a 100
 
-    # Configuración del gráfico y el diseño
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(visible=True, range=[0, 100], showticklabels=False),
-            angularaxis=dict(showline=False)
-        ),
-        showlegend=False,
-        title=dict(
-            text=f'<b>{player_name}, {season_selected}</b>',
-            font=dict(size=24),
-            x=0.5,
-            y=0.95,
-            xanchor='center',
-            yanchor='top'
-        ),
-        margin=dict(l=60, r=60, b=60, t=60),
-        paper_bgcolor='black',  # Fondo negro
-        font=dict(color='white')  # Texto blanco
-    )
+    # Añadir título personalizado
+    plt.title(f'{player_name}, {season_selected}', size=20, color='white', pad=20)  # Título principal
+    plt.text(0, -1.2, f'{team_selected}, {pos}', ha='center', size=15, color='white')  # Subtítulo debajo del título
 
-    # Añadir anotaciones de categorías y nota final
-    fig.add_annotation(text=f'{team_selected}, {pos}', x=0.5, y=1.05, showarrow=False, font=dict(size=16, color='white'))
-    fig.add_annotation(text="Rojo - Ataque", x=0.2, y=-0.15, showarrow=False, font=dict(size=12, color='#EC313A'))
-    fig.add_annotation(text="Verde - Posesión", x=0.5, y=-0.15, showarrow=False, font=dict(size=12, color='#1CD787'))
-    fig.add_annotation(text="Azul - Defensa", x=0.8, y=-0.15, showarrow=False, font=dict(size=12, color='#0E70BE'))
-    fig.add_annotation(text="* valores convertidos a percentiles en la Premier League", x=0.5, y=-0.25, showarrow=False, font=dict(size=10, color='white', style='italic'))
+    # Añadir glosario de colores debajo del gráfico
+    plt.text(-0.7, -1.6, 'Rojo - Ataque', ha='center', size=12, color='#EC313A', bbox=dict(facecolor='black', edgecolor='none'))
+    plt.text(0, -1.6, 'Verde - Posesión', ha='center', size=12, color='#1CD787', bbox=dict(facecolor='black', edgecolor='none'))
+    plt.text(0.7, -1.6, 'Azul - Defensa', ha='center', size=12, color='#0E70BE', bbox=dict(facecolor='black', edgecolor='none'))
+
+    # Añadir la descripción de los percentiles
+    plt.text(0, -2.0, '* valores convertidos a percentiles en la Premier League', ha='center', size=10, color='white', style='italic')
 
     return fig
 
 
 # Configuración de Streamlit
-st.title("Estadísticas de Jugadores por Temporada")
+st.title("Análisis Avanzado de Desempeño de Jugadores")
 
 # Descripción de la funcionalidad
 st.write("""
-    Selecciona una temporada y equipo para explorar las estadísticas de los jugadores.
-    Aquí se muestran las estadísticas de porteros y jugadores de campo de manera separada.
+    Explora detalladamente las estadísticas de los jugadores de fútbol a lo largo de las temporadas seleccionadas. Con esta herramienta podrás:
+
+**Seleccionar una Temporada y Equipo:** Navega a través de varias temporadas para obtener un contexto detallado y actual de cada equipo.
+
+**Visualizar el Desempeño de Jugadores en Formato de Pizza Chart:** El gráfico de pizza, segmentado en categorías de ataque, posesión y defensa, te permitirá comparar el rendimiento del jugador seleccionado en diferentes aspectos del juego. Los valores de las métricas están convertidos a percentiles de la liga, proporcionando una referencia visual clara sobre cómo se posiciona el jugador en comparación con sus colegas.
+
+**Ver Estadísticas en Detalle:** Los datos de cada jugador se muestran en una tabla para una referencia numérica exacta. Aquí puedes explorar sus goles, asistencias, intercepciones, pases, entre otras estadísticas clave.
 """)
 
 # Conectar a la base de datos
-conn = connect_db('C:/Users/danag.LAPTOP-A0ADBJQ7/Downloads/Clases_Diplomado/proyecto_final/datos/data.db')
+conn = connect_db('C:/Users/danag.LAPTOP-A0ADBJQ7/Downloads/Clases_Diplomado/proyecto_final/datos/model_data.db')
 
 # Crear columnas para la alineación
 col1, col2 = st.columns([2, 1])
@@ -258,57 +244,64 @@ with col2:
     else:
         st.write(f"No se encontró la imagen del equipo {team_selected}")
 
-# Mostrar las estadísticas de porteros
-st.write(f"Estadísticas de porteros del equipo {team_selected} en la temporada {season_selected}")
-goalkeeper_df = get_goalkeeper_stats(conn, season_selected, team_selected)
-st.dataframe(goalkeeper_df)
-
-# Mostrar las estadísticas de jugadores de campo
-st.write(f"Estadísticas de jugadores de campo del equipo {team_selected} en la temporada {season_selected}")
-field_players_df = get_field_players_stats(conn, season_selected, team_selected)
-st.dataframe(field_players_df)
+# Mostrar las estadísticas de jugadores
+st.write(f"Estadísticas de jugadores del equipo **{team_selected}** en la temporada {season_selected}")
+players_df = get_players_stats(conn, season_selected, team_selected)
+st.dataframe(players_df)
 
 # Obtener estadísticas combinadas de jugadores
 combined_df = get_combined_stats(conn, season_selected, team_selected)
 
 # Seleccionar un jugador
-players = field_players_df['Player'].unique()
+players = players_df['Player'].unique()
 player_selected = st.selectbox('Selecciona un jugador para comparar su desempeño', players)
 
 # Cálculo de percentiles
-combined_df = calculate_percentiles(combined_df, ['Standard_Sh', 'Standard_SoT/90', 'SCA_SCA90', 'Touches_Att Pen', 'Take-Ons_Succ', 'Total_Att', 'Total_Cmp',
-                                                   'Unnamed: 26_level_0_KP', 'Unnamed: 30_level_0_PrgP', 'Receiving_Rec', 'Performance_TklW',
-                                                   'Performance_Int', 'Performance_Recov', 'Performance_Fls', 'Aerial Duels_Won'], season_selected)
+combined_df = calculate_percentiles(combined_df, ['shooting_Sh', 'shooting_SoT/90', 'gca_SCA90', 'possession_Att Pen', 'possession_Succ', 'passing_Att', 'passing_Cmp',
+                                                   'passing_KP', 'passing_PrgP', 'possession_Rec', 'misc_TklW',
+                                                   'misc_Int', 'misc_Recov', 'misc_Fls', 'misc_Won'], season_selected)
 
 # Diccionario de renombre de columnas
 rename_dict = {
-    'Percentil_Standard_Sh': 'Tiros',
-    'Percentil_Standard_SoT/90': 'Tiros a puerta por 90',
-    'Percentil_SCA_SCA90': 'Acciones de creación por 90',
-    'Percentil_Touches_Att Pen': 'Toques en el área',
-    'Percentil_Take-Ons_Succ': 'Regates exitosos',
-    'Percentil_Total_Att': 'Pases intentados',
-    'Percentil_Total_Cmp': 'Pases completados',
-    'Percentil_Unnamed: 26_level_0_KP': 'Pases clave',
-    'Percentil_Unnamed: 30_level_0_PrgP': 'Pases progresivos',
-    'Percentil_Receiving_Rec': 'Recepciones',
-    'Percentil_Performance_TklW': 'Entradas ganadas',
-    'Percentil_Performance_Int': 'Intercepciones',
-    'Percentil_Performance_Recov': 'Recuperaciones',
-    'Percentil_Performance_Fls': 'Faltas cometidas',
-    'Percentil_Aerial Duels_Won': 'Duelos aéreos ganados'
+    'Percentil_shooting_Sh': 'Tiros',
+    'Percentil_shooting_SoT/90': 'Tiros a puerta por 90',
+    'Percentil_gca_SCA90': 'Acciones de creación por 90',
+    'Percentil_possession_Att Pen': 'Toques en el área',
+    'Percentil_possession_Succ': 'Regates exitosos',
+    'Percentil_passing_Att': 'Pases intentados',
+    'Percentil_passing_Cmp': 'Pases completados',
+    'Percentil_passing_KP': 'Pases clave',
+    'Percentil_passing_PrgP': 'Pases progresivos',
+    'Percentil_possession_Rec': 'Recepciones',
+    'Percentil_misc_TklW': 'Entradas ganadas',
+    'Percentil_misc_Int': 'Intercepciones',
+    'Percentil_misc_Recov': 'Recuperaciones',
+    'Percentil_misc_Fls': 'Faltas cometidas',
+    'Percentil_misc_Won': 'Duelos aéreos ganados'
 }
 
 # Mostrar gráfico con los datos del jugador seleccionado
-st.write(f"Gráfico de pizza de desempeño para {player_selected}")
+st.write(f"Gráfico de pizza de desempeño para **{player_selected}**")
 # Obtener los datos con percentiles calculados
 percentile_df = get_percentile_data(conn, season_selected, team_selected)
 # Filtrar datos del jugador seleccionado
 player_data = percentile_df[percentile_df['Player'] == player_selected]
-fig = plotly_radar_chart(combined_df, player_selected, season_selected, team_selected, field_players_df.loc[field_players_df['Player'] == player_selected, 'Pos'].values[0], rename_dict)
+fig = pizza_chart(combined_df, player_selected, season_selected, team_selected, players_df.loc[players_df['Player'] == player_selected, 'Pos'].values[0], rename_dict)
 
 # Mostrar el gráfico en Streamlit
-st.plotly_chart(fig)
+st.pyplot(fig)
+
+st.write("""
+**¿Qué representan los colores en el gráfico de pizza?**
+
+**Rojo:** Métricas relacionadas al ataque (e.g., tiros, tiros a puerta).
+         
+**Verde:** Métricas de posesión y control (e.g., pases clave, pases progresivos).
+         
+**Azul:** Métricas defensivas (e.g., intercepciones, duelos aéreos ganados).
+         
+>Las métricas se basan en los datos oficiales de cada temporada y equipo, permitiendo un análisis actualizado y profundo. Navega entre temporadas y jugadores para descubrir y comparar cómo destaca cada uno en sus habilidades y contribuciones al equipo.
+         """)
 
 # Cerrar la conexión a la base de datos
 conn.close()
